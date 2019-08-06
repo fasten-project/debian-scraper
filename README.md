@@ -65,6 +65,15 @@ Incremental updates are checked every `60` seconds.
 **Note**: `start_date` must be in `%Y-%m-%d %H:%M:%S` format.
 Multiple bootstrap servers should be `,` separated. Sleep time is in _seconds_.
 
+or:
+
+```sh
+python scraper.py -r buster -a amd64 '2019-06-1 00:00:00' cf_deb_releases localhost:9092 60
+```
+
+To query only for releases in `buster` Debian release and
+for `amd64` architecture.
+
 ## Sample data
 
 Data will be send in the following format:
