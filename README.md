@@ -89,3 +89,16 @@ Data will be send in the following format:
   "date": "2019-06-24 11:21:15"
 }
 ```
+
+## Run in Docker
+
+```bash
+docker build -t debian-scraper .
+docker run debian-scraper -r buster -a amd64 '2019-06-1 00:00:00' cf_deb_releases localhost:9092 60
+```
+
+or alternatively
+
+```bash
+docker run schaliasos/debian-scraper -r buster -a amd64 '2019-06-1 00:00:00' cf_deb_releases localhost:9092 60
+```
