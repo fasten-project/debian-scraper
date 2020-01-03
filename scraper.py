@@ -195,17 +195,7 @@ def produce_to_kafka(topic, servers, start_date, is_c, release, arch):
 
 def get_parser():
     parser = argparse.ArgumentParser(
-        "Scrape Debian packages releases to Kafka."
-    )
-    parser.add_argument(
-        'bootstrap_servers',
-        type=str,
-        help="Kafka servers, comma separated."
-    )
-    parser.add_argument(
-        'topic',
-        type=str,
-        help="Kafka topic to push to."
+        "Scrape Debian packages releases, and optionally push them to Kafka."
     )
     parser.add_argument(
         '-a',
@@ -213,6 +203,12 @@ def get_parser():
         type=str,
         default=None,
         help='Specify an architecture (default amd64)'
+    )
+    parser.add_argument(
+        '-b',
+        '--bootstrap_servers',
+        type=str,
+        help="Kafka servers, comma separated."
     )
     parser.add_argument(
         '-C',
@@ -228,10 +224,10 @@ def get_parser():
               "%%Y-%%m-%%d %%H:%%M:%%S format.")
     )
     parser.add_argument(
-        '-D',
-        '--debug',
+        '-f',
+        '--forever',
         action='store_true',
-        help="Debug mode, it just prints the output on the stdout."
+        help="Run forever"
     )
     parser.add_argument(
         '-n',
@@ -261,6 +257,12 @@ def get_parser():
               "--start-date option. Default 43.200 seconds (12 hours).")
     )
     parser.add_argument(
+        '-t',
+        '--topic',
+        type=str,
+        help="Kafka topic to push to."
+    )
+    parser.add_argument(
         '-v',
         '--version',
         type=str,
@@ -280,14 +282,22 @@ def main():
         parser.error("Cannot use --start-date with --package")
     if args.version and not args.package:
         parser.error("--version must be used with --package")
+    if args.topic and not args.bootstrap_servers:
+        parser.error("--topic must be used with --bootstrap-servers")
+    if args.bootstrap_servers and not args.topic:
+        parser.error("--bootstrap-servers must be used with --topic")
     # Retrieve all arguments.
+    arch = args.architecture
+    bootstrap_servers = args.bootstrap_servers
+    debian_release = args.release
+    forever = args.forever
+    is_c = False if args.not_only_c else True
     kafka_topic = args.topic
     latest_date = args.start_date
-    bootstrap_servers = args.bootstrap_servers
+    number = args.number
+    package = args.package
     sleep_time = args.sleep_time
-    is_c = False if args.not_only_c else True
-    debian_release = args.release
-    arch = args.architecture
+    version = args.version
 
     # Forever: get releases from start_date, update latest_date based on
     # latest release and push this to Kafka.
