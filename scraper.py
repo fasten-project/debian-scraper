@@ -273,6 +273,13 @@ def main():
     parser = get_parser()
     args = parser.parse_args()
 
+    # Check arguments
+    if args.start_date and args.number:
+        parser.error("Cannot use --start-date with --number")
+    if args.start_date and args.package:
+        parser.error("Cannot use --start-date with --package")
+    if args.version and not args.package:
+        parser.error("--version must be used with --package")
     # Retrieve all arguments.
     kafka_topic = args.topic
     latest_date = args.start_date
