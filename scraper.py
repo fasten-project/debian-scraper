@@ -197,31 +197,75 @@ def get_parser():
     parser = argparse.ArgumentParser(
         "Scrape Debian packages releases to Kafka."
     )
-    parser.add_argument('start_date',
-                        type=lambda s: datetime.datetime.strptime(
-                            s, date_format
-                        ),
-                        help=("The date to start scraping from. Must be in "
-                              "%%Y-%%m-%%d %%H:%%M:%%S format."))
-    parser.add_argument('topic', type=str, help="Kafka topic to push to.")
-    parser.add_argument('bootstrap_servers',
-                        type=str,
-                        help="Kafka servers, comma separated.")
-    parser.add_argument('sleep_time',
-                        type=int,
-                        help="Time to sleep in between each scrape (in sec).")
-    parser.add_argument('-n', '--not-only-c',
-                        action='store_true',
-                        help=('Fetch all types of packages releases'
-                              '(not only C packages)'))
-    parser.add_argument('-r', '--release',
-                        type=str,
-                        default=None,
-                        help='Specify Debian Release (e.g. buster')
-    parser.add_argument('-a', '--architecture',
-                        type=str,
-                        default=None,
-                        help='Specify an architecture (e.g. amd64')
+    parser.add_argument(
+        'bootstrap_servers',
+        type=str,
+        help="Kafka servers, comma separated."
+    )
+    parser.add_argument(
+        'topic',
+        type=str,
+        help="Kafka topic to push to."
+    )
+    parser.add_argument(
+        '-a',
+        '--architecture',
+        type=str,
+        default=None,
+        help='Specify an architecture (default amd64)'
+    )
+    parser.add_argument(
+        '-C',
+        '--not-only-c',
+        action='store_true',
+        help='Fetch all types of packages releases (not only C packages).'
+    )
+    parser.add_argument(
+        '-d',
+        '--start-date',
+        type=lambda s: datetime.datetime.strptime(s, date_format),
+        help=("The date to start scraping from. Must be in "
+              "%%Y-%%m-%%d %%H:%%M:%%S format.")
+    )
+    parser.add_argument(
+        '-D',
+        '--debug',
+        action='store_true',
+        help="Debug mode, it just prints the output on the stdout."
+    )
+    parser.add_argument(
+        '-n',
+        '--number',
+        type=str,
+        help='Number of versions to fetch. Cannot use it with --start-date.'
+    )
+    parser.add_argument(
+        '-p',
+        '--package',
+        type=str,
+        help='Package name to fetch. Cannot use it with --start-date.'
+    )
+    parser.add_argument(
+        '-r',
+        '--release',
+        type=str,
+        default='buster',
+        help='Specify Debian Release (default buster).'
+    )
+    parser.add_argument(
+        '-s',
+        '--sleep-time',
+        type=int,
+        default=43200,
+        help=("Time to sleep in between each scrape (in sec). Use it with "
+              "--start-date option. Default 43.200 seconds (12 hours).")
+    )
+    parser.add_argument(
+        '-v',
+        '--version',
+        type=str,
+        help='Version of a specific version. Always use it with --package.'
+    )
     return parser
 
 
