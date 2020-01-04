@@ -28,6 +28,7 @@ import json
 import argparse
 import time
 import psycopg2
+from abc import ABC, abstractmethod
 from psycopg2 import OperationalError
 from kafka import KafkaProducer
 
@@ -77,7 +78,7 @@ class DebianPackageRelease:
         })
 
 
-class Udd:
+class Udd(ABC):
     """Get Debian Packages Releases using UDD mirror"""
 
     host = host
@@ -85,8 +86,7 @@ class Udd:
     password = password
     dbname = 'udd'
 
-    def __init__(self, start_date, is_c=False, release=None, arch=None):
-        self.start_date = start_date
+    def __init__(self, is_c=False, release=None, arch=None):
         self.is_c = is_c
         self.release = release
         self.arch = arch
@@ -111,33 +111,10 @@ class Udd:
             raise
         return con
 
+    @abstractmethod
     def query(self):
-        """Query db for new releases.
+        """Query db for releases.
         """
-        cursor = self.con.cursor()
-
-        check_is_c = (" AND tag LIKE '%implemented-in::c%' "
-                      if self.is_c else '')
-        check_release = (" AND release = '{}' ".format(self.release)
-                         if self.release else '')
-        check_arch = (" AND architecture = '{}' ".format(self.arch)
-                      if self.arch else '')
-
-        query = ("SELECT package, packages.version, packages.source, "
-                 "source_version, date, architecture, release "
-                 "FROM packages INNER JOIN upload_history ON "
-                 "upload_history.source = packages.source AND "
-                 "upload_history.version = packages.source_version "
-                 "WHERE date > '{start_date}+00'"
-                 "{release}{arch}{is_c}").format(
-                     start_date=self.start_date,
-                     release=check_release,
-                     arch=check_arch,
-                     is_c=check_is_c
-                 )
-
-        cursor.execute(query)
-        return cursor.fetchall()
 
     def parse_query(self, query_result):
         """Parses a query and returns Debian Packages Releases.
@@ -153,7 +130,7 @@ class Udd:
         return releases
 
     def get_releases(self):
-        """Get all Debian Packages Releases form a certain date.
+        """Get Debian Packages Releases.
         """
         releases = []
 
@@ -165,6 +142,122 @@ class Udd:
 
         # Return them sorted.
         return sorted(releases, key=lambda x: x.date)
+
+
+class AllUdd(Udd):
+    """Fetch the latest releases of all packages.
+    """
+
+    def query(self):
+        cursor = self.con.cursor()
+
+        check_is_c = (" tag LIKE '%implemented-in::c%' "
+                      if self.is_c else '')
+        check_release = (" release = '{}' ".format(self.release)
+                         if self.release else '')
+        check_arch = (" architecture = '{}' ".format(self.arch)
+                      if self.arch else '')
+
+        checks = [check_is_c, check_release, check_arch]
+        check = ''
+        for counter, i in enumerate(checks):
+            check += i
+            if counter < len(checks)-1:
+                if checks[counter+1] != '':
+                    check += "AND"
+
+        check = "WHERE " + check if check != '' else ''
+
+        query = ("SELECT package, packages.version, packages.source, "
+                 "source_version, date, architecture, release "
+                 "FROM packages INNER JOIN upload_history ON "
+                 "upload_history.source = packages.source AND "
+                 "upload_history.version = packages.source_version "
+                 "{}"
+                ).format(check)
+
+        cursor.execute(query)
+        return cursor.fetchall()
+
+
+class PackageUdd(Udd):
+    """Fetch release(s) of a single package.
+    """
+
+    def __init__(self, is_c=False, release=None, arch=None, package='',
+                 version=None):
+        super(PackageUdd, self).__init__(is_c, release, arch)
+        self.package = package
+        self.version = version
+
+    def query(self):
+        cursor = self.con.cursor()
+
+        check_is_c = (" AND tag LIKE '%implemented-in::c%' "
+                      if self.is_c else '')
+        check_release = (" AND release = '{}' ".format(self.release)
+                         if self.release else '')
+        check_arch = (" AND architecture = '{}' ".format(self.arch)
+                      if self.arch else '')
+        check_version = (" AND version = '{}' ".format(self.version)
+                         if self.version else '')
+
+        check = "{}{}{}{}".format(
+            check_is_c, check_release, check_arch, check_version
+        )
+
+        query = ("SELECT package, packages.version, packages.source, "
+                 "source_version, date, architecture, release "
+                 "FROM packages INNER JOIN upload_history ON "
+                 "upload_history.source = packages.source AND "
+                 "upload_history.version = packages.source_version "
+                 "WHERE package = '{}' "
+                 "{}"
+                ).format(self.package, check)
+
+        cursor.execute(query)
+        return cursor.fetchall()
+
+
+class DateUdd(Udd):
+    """Fetch releases from a starting date.
+    """
+
+    def __init__(self, is_c=False, release=None, arch=None, package=None,
+                 date=''):
+        super(DateUdd, self).__init__(is_c, release, arch)
+        self.package = package
+        self.start_date = date
+
+    def query(self):
+        cursor = self.con.cursor()
+
+        check_is_c = (" AND tag LIKE '%implemented-in::c%' "
+                      if self.is_c else '')
+        check_release = (" AND release = '{}' ".format(self.release)
+                         if self.release else '')
+        check_arch = (" AND architecture = '{}' ".format(self.arch)
+                      if self.arch else '')
+        check_package = (" AND package = '{}' ".format(self.package)
+                         if self.package else '')
+
+        check = "{}{}{}{}".format(
+            check_is_c, check_release, check_arch, check_package
+        )
+
+        query = ("SELECT package, packages.version, packages.source, "
+                 "source_version, date, architecture, release "
+                 "FROM packages INNER JOIN upload_history ON "
+                 "upload_history.source = packages.source AND "
+                 "upload_history.version = packages.source_version "
+                 "WHERE date > '{start_date}+00' "
+                 "{check}").format(
+                     start_date=self.start_date,
+                     check=check
+                 )
+
+        cursor.execute(query)
+        return cursor.fetchall()
 
 
 def produce_to_kafka(topic, servers, start_date, is_c, release, arch):
@@ -202,7 +295,7 @@ def get_parser():
         '--architecture',
         type=str,
         default=None,
-        help='Specify an architecture (default amd64)'
+        help='Specify an architecture (e.g. amd64)'
     )
     parser.add_argument(
         '-b',
@@ -230,23 +323,17 @@ def get_parser():
         help="Run forever"
     )
     parser.add_argument(
-        '-n',
-        '--number',
-        type=str,
-        help='Number of versions to fetch. Cannot use it with --start-date.'
-    )
-    parser.add_argument(
         '-p',
         '--package',
         type=str,
-        help='Package name to fetch. Cannot use it with --start-date.'
+        help='Package name to fetch.'
     )
     parser.add_argument(
         '-r',
         '--release',
         type=str,
-        default='buster',
-        help='Specify Debian Release (default buster).'
+        default=None,
+        help='Specify Debian Release (e.g. buster).'
     )
     parser.add_argument(
         '-s',
@@ -276,10 +363,6 @@ def main():
     args = parser.parse_args()
 
     # Check arguments
-    if args.start_date and args.number:
-        parser.error("Cannot use --start-date with --number")
-    if args.start_date and args.package:
-        parser.error("Cannot use --start-date with --package")
     if args.version and not args.package:
         parser.error("--version must be used with --package")
     if args.topic and not args.bootstrap_servers:
@@ -294,28 +377,37 @@ def main():
     is_c = False if args.not_only_c else True
     kafka_topic = args.topic
     latest_date = args.start_date
-    number = args.number
     package = args.package
     sleep_time = args.sleep_time
     version = args.version
 
+    if latest_date:
+        udd = DateUdd(is_c, debian_release, arch, package, latest_date)
+        print(udd.get_releases())
+    elif package:
+        udd = PackageUdd(is_c, debian_release, arch, package, version)
+        print(udd.get_releases())
+    else:
+        udd = AllUdd(is_c, debian_release, arch)
+        print(udd.get_releases())
+
     # Forever: get releases from start_date, update latest_date based on
     # latest release and push this to Kafka.
-    while True:
-        print("{0}: Scraping releases from {1} to now. Sending to {2}.".format(
-            str(datetime.datetime.now()),
-            str(latest_date),
-            kafka_topic)
-        )
-        latest_date = produce_to_kafka(
-            kafka_topic,
-            bootstrap_servers,
-            latest_date,
-            is_c,
-            debian_release,
-            arch
-        )
-        time.sleep(sleep_time)
+#      while True:
+        #  print("{0}: Scraping releases from {1} to now. Sending to {2}.".format(
+            #  str(datetime.datetime.now()),
+            #  str(latest_date),
+            #  kafka_topic)
+        #  )
+        #  latest_date = produce_to_kafka(
+            #  kafka_topic,
+            #  bootstrap_servers,
+            #  latest_date,
+            #  is_c,
+            #  debian_release,
+            #  arch
+        #  )
+        #  time.sleep(sleep_time)
 
 
 if __name__ == "__main__":
