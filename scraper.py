@@ -295,7 +295,7 @@ def get_parser():
         '--architecture',
         type=str,
         default=None,
-        help='Specify an architecture (e.g. amd64)'
+        help='Specify an architecture (e.g. amd64).'
     )
     parser.add_argument(
         '-b',
@@ -320,7 +320,7 @@ def get_parser():
         '-f',
         '--forever',
         action='store_true',
-        help="Run forever"
+        help="Run forever. Always use it with --start-date."
     )
     parser.add_argument(
         '-p',
@@ -365,6 +365,8 @@ def main():
     # Check arguments
     if args.version and not args.package:
         parser.error("--version must be used with --package")
+    if args.forever and not args.start_date:
+        parser.error("--forever must be used with --start-date")
     if args.topic and not args.bootstrap_servers:
         parser.error("--topic must be used with --bootstrap-servers")
     if args.bootstrap_servers and not args.topic:
