@@ -143,6 +143,22 @@ class Udd(ABC):
         # Return them sorted.
         return sorted(releases, key=lambda x: x.date)
 
+    def to_print(self):
+        """Print Debian Packages Releases to stdout/
+        """
+        releases = self.get_releases()
+
+        for release in list(releases):
+            print(release.to_json())
+
+        # Return latest date (if any new releases are found).
+        if len(releases) == 0:
+            if hasattr(self, 'start_date'):
+                return self.start_date
+            else:
+                return str(datetime.datetime.today().strftime(date_format))
+        return releases[-1].date.replace(tzinfo=None)
+
 
 class AllUdd(Udd):
     """Fetch the latest releases of all packages.
@@ -384,14 +400,13 @@ def main():
     version = args.version
 
     if latest_date:
-        udd = DateUdd(is_c, debian_release, arch, package, latest_date)
-        print(udd.get_releases())
+        udd_con = DateUdd(is_c, debian_release, arch, package, latest_date)
     elif package:
-        udd = PackageUdd(is_c, debian_release, arch, package, version)
-        print(udd.get_releases())
+        udd_con = PackageUdd(is_c, debian_release, arch, package, version)
     else:
-        udd = AllUdd(is_c, debian_release, arch)
-        print(udd.get_releases())
+        udd_con = AllUdd(is_c, debian_release, arch)
+
+    udd_con.to_print()
 
     # Forever: get releases from start_date, update latest_date based on
     # latest release and push this to Kafka.
