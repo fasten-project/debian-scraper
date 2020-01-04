@@ -62,7 +62,7 @@ For example:
 
 ```bash
 python scraper.py --start-date '2019-06-1 00:00:00' --topic cf_deb_releases \
-    --bootstrap_servers localhost:9092 --sleep-time 60
+    --bootstrap_servers localhost:9092 --sleep-time 60 -f
 ```
 
 This will find releases from `2019-06-1 00:00:00` (+ incremental updates)
@@ -77,7 +77,7 @@ or:
 ```sh
 python scraper.py --release buster --architecture amd64 \
     --start-date '2019-06-1 00:00:00' --topic cf_deb_releases \
-    --bootstrap_servers localhost:9092 --sleep-time 60
+    --bootstrap_servers localhost:9092 --sleep-time 60 -f
 ```
 
 To query only for releases in `buster` Debian release and
