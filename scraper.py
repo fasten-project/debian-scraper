@@ -406,25 +406,18 @@ def main():
     else:
         udd_con = AllUdd(is_c, debian_release, arch)
 
-    udd_con.to_print()
-
     # Forever: get releases from start_date, update latest_date based on
     # latest release and push this to Kafka.
-#      while True:
-        #  print("{0}: Scraping releases from {1} to now. Sending to {2}.".format(
-            #  str(datetime.datetime.now()),
-            #  str(latest_date),
-            #  kafka_topic)
-        #  )
-        #  latest_date = produce_to_kafka(
-            #  kafka_topic,
-            #  bootstrap_servers,
-            #  latest_date,
-            #  is_c,
-            #  debian_release,
-            #  arch
-        #  )
-        #  time.sleep(sleep_time)
+    if forever:
+        while True:
+            print("{0}: Scraping releases from {1} to now.".format(
+                str(datetime.datetime.now()),
+                str(latest_date)
+            ))
+            latest_date = udd_con.to_print()
+            time.sleep(sleep_time)
+    else:
+        udd_con.to_print()
 
 
 if __name__ == "__main__":
