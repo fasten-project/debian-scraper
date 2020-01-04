@@ -86,11 +86,19 @@ class Udd(ABC):
     password = password
     dbname = 'udd'
 
-    def __init__(self, is_c=False, release=None, arch=None):
+    def __init__(self, bootstrap_servers=None, kafka_topic=None,
+                 is_c=False, release=None, arch=None):
+        self.servers = bootstrap_servers
+        self.topic = kafka_topic
         self.is_c = is_c
         self.release = release
         self.arch = arch
         self.con = None
+        self.produce = self.to_print
+
+        if self.servers is not None and self.topic is not None:
+            self.produce = self.to_kafka
+
 
         try:
             self.con = self._connect_db()
@@ -160,6 +168,35 @@ class Udd(ABC):
         return releases[-1].date.replace(tzinfo=None)
 
 
+    def to_kafka(self):
+        """Get all Debian Packages Releases from a certain date
+        and push to Kafka.
+        """
+        releases = self.get_releases()
+
+        producer = KafkaProducer(
+            bootstrap_servers=self.servers.split(','),
+            value_serializer=lambda x: x.encode('utf-8')
+        )
+
+        for release in releases:
+            release.print_release()
+            producer.send(self.topic, release.to_json())
+
+        producer.flush()
+        print("{0}: Sent {1} releases.".format(
+            str(datetime.datetime.now()), len(releases))
+        )
+
+        # Return latest date (if any new releases are found).
+        if len(releases) == 0:
+            if hasattr(self, 'start_date'):
+                return self.start_date
+            else:
+                return str(datetime.datetime.today().strftime(date_format))
+        return releases[-1].date.replace(tzinfo=None)
+
+
 class AllUdd(Udd):
     """Fetch the latest releases of all packages.
     """
@@ -200,9 +237,12 @@ class PackageUdd(Udd):
     """Fetch release(s) of a single package.
     """
 
-    def __init__(self, is_c=False, release=None, arch=None, package='',
+    def __init__(self, bootstrap_servers=None, kafka_topic=None,
+                 is_c=False, release=None, arch=None, package='',
                  version=None):
-        super(PackageUdd, self).__init__(is_c, release, arch)
+        super(PackageUdd, self).__init__(
+            bootstrap_servers, kafka_topic, is_c, release, arch
+        )
         self.package = package
         self.version = version
 
@@ -239,9 +279,12 @@ class DateUdd(Udd):
     """Fetch releases from a starting date.
     """
 
-    def __init__(self, is_c=False, release=None, arch=None, package=None,
+    def __init__(self, bootstrap_servers=None, kafka_topic=None,
+                 is_c=False, release=None, arch=None, package=None,
                  date=''):
-        super(DateUdd, self).__init__(is_c, release, arch)
+        super(DateUdd, self).__init__(
+            bootstrap_servers, kafka_topic, is_c, release, arch
+        )
         self.package = package
         self.start_date = date
 
@@ -276,32 +319,6 @@ class DateUdd(Udd):
         return cursor.fetchall()
 
 
-def produce_to_kafka(topic, servers, start_date, is_c, release, arch):
-    """Get all Debian Packages Releases from a certain date and push to Kafka.
-    """
-    udd_con = Udd(start_date, is_c, release, arch)
-    releases = udd_con.get_releases()
-
-    producer = KafkaProducer(
-        bootstrap_servers=servers.split(','),
-        value_serializer=lambda x: x.encode('utf-8')
-    )
-
-    for release in releases:
-        release.print_release()
-        producer.send(topic, release.to_json())
-
-    producer.flush()
-    print("{0}: Sent {1} releases.".format(
-        str(datetime.datetime.now()), len(releases))
-    )
-
-    # Return latest date (if any new releases are found).
-    if len(releases) == 0:
-        return start_date
-    return releases[-1].date.replace(tzinfo=None)
-
-
 def get_parser():
     parser = argparse.ArgumentParser(
         "Scrape Debian packages releases, and optionally push them to Kafka."
@@ -317,6 +334,7 @@ def get_parser():
         '-b',
         '--bootstrap_servers',
         type=str,
+        default=None,
         help="Kafka servers, comma separated."
     )
     parser.add_argument(
@@ -363,6 +381,7 @@ def get_parser():
         '-t',
         '--topic',
         type=str,
+        default=None,
         help="Kafka topic to push to."
     )
     parser.add_argument(
@@ -400,11 +419,20 @@ def main():
     version = args.version
 
     if latest_date:
-        udd_con = DateUdd(is_c, debian_release, arch, package, latest_date)
+        udd_con = DateUdd(
+            bootstrap_servers, kafka_topic,
+            is_c, debian_release, arch, package, latest_date
+        )
     elif package:
-        udd_con = PackageUdd(is_c, debian_release, arch, package, version)
+        udd_con = PackageUdd(
+            bootstrap_servers, kafka_topic,
+            is_c, debian_release, arch, package, version
+        )
     else:
-        udd_con = AllUdd(is_c, debian_release, arch)
+        udd_con = AllUdd(
+            bootstrap_servers, kafka_topic,
+            is_c, debian_release, arch
+        )
 
     # Forever: get releases from start_date, update latest_date based on
     # latest release and push this to Kafka.
@@ -414,10 +442,10 @@ def main():
                 str(datetime.datetime.now()),
                 str(latest_date)
             ))
-            latest_date = udd_con.to_print()
+            latest_date = udd_con.produce()
             time.sleep(sleep_time)
     else:
-        udd_con.to_print()
+        udd_con.produce()
 
 
 if __name__ == "__main__":
