@@ -1,13 +1,11 @@
-# Incremental Debian packages releases to Kafka
+# Ultimate Debian Database scraper
 
-This Python script queries [udd-mirror](https://udd-mirror.debian.net/)
-and forwards it to Kafka.
-The scraper script requires: `start_date`, `kafka_topic`, `bootstrap_servers`
-and `sleeptime`. It will find all releases from `start_date` and push them
-to the `kafka_topic` running on `bootstrap_servers`.
-It will keep repeating after `sleep_time` seconds with
-`start_time == date_of_latest_release`. I.e. it does incremental updates
-on Debian Packages releases.
+This Python script queries [udd-mirror](https://udd-mirror.debian.net/),
+and it either forwards it to Kafka or print to stdout.
+The scraper script provides a command-line interface with many abilities,
+and it can be extended easily.
+It queries UDD, and then it produces JSONs with releases metadata.
+The scraper also supports incremental updates on Debian Packages releases.
 
 ## Prerequisites
 
@@ -30,32 +28,41 @@ env LDFLAGS='-L/usr/local/lib -L/usr/local/opt/openssl/lib \
 ## How To Run
 
 ```bash
-usage: Push Debian packages releases to Kafka. [-h] [-n] [-r RELEASE]
-                                               [-a ARCHITECTURE]
-                                               start_date topic
-                                               bootstrap_servers sleep_time
-
-positional arguments:
-  start_date            The date to start scraping from. Must be in %Y-%m-%d
-                        %H:%M:%S format.
-  topic                 Kafka topic to push to.
-  bootstrap_servers     Kafka servers, comma separated.
-  sleep_time            Time to sleep in between each scrape (in sec).
+usage: Scrape Debian packages releases, and optionally push them to Kafka.
+       [-h] [-a ARCHITECTURE] [-b BOOTSTRAP_SERVERS] [-C] [-d START_DATE] [-f]
+       [-p PACKAGE] [-r RELEASE] [-s SLEEP_TIME] [-t TOPIC] [-v VERSION]
 
 optional arguments:
   -h, --help            show this help message and exit
-  -n, --not-only-c      Fetch all types of packages releases(not only C
-                        packages)
-  -r RELEASE, --release RELEASE
-                        Specify Debian Release (e.g. buster)
   -a ARCHITECTURE, --architecture ARCHITECTURE
-                        Specify an architecture (e.g. amd64)
+                        Specify an architecture (e.g. amd64).
+  -b BOOTSTRAP_SERVERS, --bootstrap_servers BOOTSTRAP_SERVERS
+                        Kafka servers, comma separated.
+  -C, --not-only-c      Fetch all types of packages releases (not only C
+                        packages).
+  -d START_DATE, --start-date START_DATE
+                        The date to start scraping from. Must be in %Y-%m-%d
+                        %H:%M:%S format.
+  -f, --forever         Run forever. Always use it with --start-date.
+  -p PACKAGE, --package PACKAGE
+                        Package name to fetch.
+  -r RELEASE, --release RELEASE
+                        Specify Debian Release (e.g. buster).
+  -s SLEEP_TIME, --sleep-time SLEEP_TIME
+                        Time to sleep in between each scrape (in sec). Use it
+                        with --start-date option. Default 43.200 seconds (12
+                        hours).
+  -t TOPIC, --topic TOPIC
+                        Kafka topic to push to.
+  -v VERSION, --version VERSION
+                        Version of
 ```
 
 For example:
 
-```sh
-python scraper.py '2019-06-1 00:00:00' cf_deb_releases localhost:9092 60
+```bash
+python scraper.py --start-date '2019-06-1 00:00:00' --topic cf_deb_releases \
+    --bootstrap_servers localhost:9092 --sleep-time 60
 ```
 
 This will find releases from `2019-06-1 00:00:00` (+ incremental updates)
@@ -68,7 +75,9 @@ Multiple bootstrap servers should be `,` separated. Sleep time is in _seconds_.
 or:
 
 ```sh
-python scraper.py -r buster -a amd64 '2019-06-1 00:00:00' cf_deb_releases localhost:9092 60
+python scraper.py --release buster --architecture amd64 \
+    --start-date '2019-06-1 00:00:00' --topic cf_deb_releases \
+    --bootstrap_servers localhost:9092 --sleep-time 60
 ```
 
 To query only for releases in `buster` Debian release and
@@ -94,11 +103,11 @@ Data will be send in the following format:
 
 ```bash
 docker build -t debian-scraper .
-docker run debian-scraper -r buster -a amd64 '2019-06-1 00:00:00' cf_deb_releases localhost:9092 60
+docker run debian-scraper --help
 ```
 
 or alternatively
 
 ```bash
-docker run schaliasos/debian-scraper -r buster -a amd64 '2019-06-1 00:00:00' cf_deb_releases localhost:9092 60
+docker run schaliasos/debian-scraper --help
 ```
