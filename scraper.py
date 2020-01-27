@@ -215,7 +215,7 @@ class AllUdd(Udd):
         check = ''
         for counter, i in enumerate(checks):
             check += i
-            if counter < len(checks)-1:
+            if counter < len(checks)-1 and check != '':
                 if checks[counter+1] != '':
                     check += "AND"
 
