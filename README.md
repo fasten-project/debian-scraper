@@ -36,7 +36,7 @@ optional arguments:
   -h, --help            show this help message and exit
   -a ARCHITECTURE, --architecture ARCHITECTURE
                         Specify an architecture (e.g. amd64).
-  -b BOOTSTRAP_SERVERS, --bootstrap_servers BOOTSTRAP_SERVERS
+  -b BOOTSTRAP_SERVERS, --bootstrap-servers BOOTSTRAP_SERVERS
                         Kafka servers, comma separated.
   -C, --not-only-c      Fetch all types of packages releases (not only C
                         packages).
@@ -62,7 +62,7 @@ For example:
 
 ```bash
 python scraper.py --start-date '2019-06-1 00:00:00' --topic cf_deb_releases \
-    --bootstrap_servers localhost:9092 --sleep-time 60 -f
+    --bootstrap-servers localhost:9092 --sleep-time 60 -f
 ```
 
 This will find releases from `2019-06-1 00:00:00` (+ incremental updates)
@@ -77,7 +77,7 @@ or:
 ```sh
 python scraper.py --release buster --architecture amd64 \
     --start-date '2019-06-1 00:00:00' --topic cf_deb_releases \
-    --bootstrap_servers localhost:9092 --sleep-time 60 -f
+    --bootstrap-servers localhost:9092 --sleep-time 60 -f
 ```
 
 To query only for releases in `buster` Debian release and

@@ -332,7 +332,7 @@ def get_parser():
     )
     parser.add_argument(
         '-b',
-        '--bootstrap_servers',
+        '--bootstrap-servers',
         type=str,
         default=None,
         help="Kafka servers, comma separated."
