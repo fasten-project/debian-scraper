@@ -109,5 +109,6 @@ docker run debian-scraper --help
 or alternatively
 
 ```bash
+# If use it with kafka pass to docker: --net=host
 docker run schaliasos/debian-scraper --help
 ```
