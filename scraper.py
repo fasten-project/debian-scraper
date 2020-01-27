@@ -239,12 +239,13 @@ class PackageUdd(Udd):
 
     def __init__(self, bootstrap_servers=None, kafka_topic=None,
                  is_c=False, release=None, arch=None, package='',
-                 version=None):
+                 version=None, is_package=True):
         super(PackageUdd, self).__init__(
             bootstrap_servers, kafka_topic, is_c, release, arch
         )
         self.package = package
         self.version = version
+        self.is_package = is_package
 
     def query(self):
         cursor = self.con.cursor()
@@ -257,6 +258,7 @@ class PackageUdd(Udd):
                       if self.arch else '')
         check_version = (" AND version = '{}' ".format(self.version)
                          if self.version else '')
+        package_source = "package" if self.is_package else "packages.source"
 
         check = "{}{}{}{}".format(
             check_is_c, check_release, check_arch, check_version
@@ -267,9 +269,9 @@ class PackageUdd(Udd):
                  "FROM packages INNER JOIN upload_history ON "
                  "upload_history.source = packages.source AND "
                  "upload_history.version = packages.source_version "
-                 "WHERE package = '{}' "
-                 "{}"
-                ).format(self.package, check)
+                 "WHERE {} = '{}' "
+                 "{} LIMIT 1"
+                ).format(package_source, self.package, check)
 
         cursor.execute(query)
         return cursor.fetchall()
@@ -360,7 +362,7 @@ def get_parser():
         '-p',
         '--package',
         type=str,
-        help='Package name to fetch.'
+        help="Package's name to fetch."
     )
     parser.add_argument(
         '-r',
@@ -376,6 +378,12 @@ def get_parser():
         default=43200,
         help=("Time to sleep in between each scrape (in sec). Use it with "
               "--start-date option. Default 43.200 seconds (12 hours).")
+    )
+    parser.add_argument(
+        '-S',
+        '--source',
+        type=str,
+        help="Source's name to fetch."
     )
     parser.add_argument(
         '-t',
@@ -398,8 +406,10 @@ def main():
     args = parser.parse_args()
 
     # Check arguments
-    if args.version and not args.package:
-        parser.error("--version must be used with --package")
+    if args.package and args.source:
+        parser.error("--package can not be used with --source")
+    if args.version and (not args.package or not args.source):
+        parser.error("--version must be used with --package or --source")
     if args.forever and not args.start_date:
         parser.error("--forever must be used with --start-date")
     if args.topic and not args.bootstrap_servers:
@@ -415,6 +425,7 @@ def main():
     kafka_topic = args.topic
     latest_date = args.start_date
     package = args.package
+    source = args.source
     sleep_time = args.sleep_time
     version = args.version
 
@@ -427,6 +438,12 @@ def main():
         udd_con = PackageUdd(
             bootstrap_servers, kafka_topic,
             is_c, debian_release, arch, package, version
+        )
+    elif source:
+        udd_con = PackageUdd(
+            bootstrap_servers, kafka_topic,
+            is_c, debian_release, arch, source, version,
+            False
         )
     else:
         udd_con = AllUdd(

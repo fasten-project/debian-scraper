@@ -30,7 +30,8 @@ env LDFLAGS='-L/usr/local/lib -L/usr/local/opt/openssl/lib \
 ```bash
 usage: Scrape Debian packages releases, and optionally push them to Kafka.
        [-h] [-a ARCHITECTURE] [-b BOOTSTRAP_SERVERS] [-C] [-d START_DATE] [-f]
-       [-p PACKAGE] [-r RELEASE] [-s SLEEP_TIME] [-t TOPIC] [-v VERSION]
+       [-p PACKAGE] [-r RELEASE] [-s SLEEP_TIME] [-S SOURCE] [-t TOPIC]
+       [-v VERSION]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -45,17 +46,20 @@ optional arguments:
                         %H:%M:%S format.
   -f, --forever         Run forever. Always use it with --start-date.
   -p PACKAGE, --package PACKAGE
-                        Package name to fetch.
+                        Package's name to fetch.
   -r RELEASE, --release RELEASE
                         Specify Debian Release (e.g. buster).
   -s SLEEP_TIME, --sleep-time SLEEP_TIME
                         Time to sleep in between each scrape (in sec). Use it
                         with --start-date option. Default 43.200 seconds (12
                         hours).
+  -S SOURCE, --source SOURCE
+                        Source's name to fetch.
   -t TOPIC, --topic TOPIC
                         Kafka topic to push to.
   -v VERSION, --version VERSION
-                        Version of
+                        Version of a specific version. Always use it with
+                        --package.
 ```
 
 For example:
