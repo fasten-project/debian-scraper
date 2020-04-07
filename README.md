@@ -29,8 +29,8 @@ env LDFLAGS='-L/usr/local/lib -L/usr/local/opt/openssl/lib \
 
 ```bash
 usage: Scrape Debian packages releases, and optionally push them to Kafka.
-       [-h] [-a ARCHITECTURE] [-b BOOTSTRAP_SERVERS] [-C] [-d START_DATE] [-f]
-       [-p PACKAGE] [-r RELEASE] [-s SLEEP_TIME] [-S SOURCE] [-t TOPIC]
+       [-h] [-a ARCHITECTURE] [-b BOOTSTRAP_SERVERS] [-C] [-d START_DATE] [-D]
+       [-f] [-p PACKAGE] [-r RELEASE] [-s SLEEP_TIME] [-S SOURCE] [-t TOPIC]
        [-v VERSION]
 
 optional arguments:
@@ -44,6 +44,7 @@ optional arguments:
   -d START_DATE, --start-date START_DATE
                         The date to start scraping from. Must be in %Y-%m-%d
                         %H:%M:%S format.
+  -D, --debug           Fetch some predefined packages for debugging purposes
   -f, --forever         Run forever. Always use it with --start-date.
   -p PACKAGE, --package PACKAGE
                         Package's name to fetch.

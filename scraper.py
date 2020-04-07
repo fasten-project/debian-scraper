@@ -38,6 +38,23 @@ user = "udd-mirror"
 password = "udd-mirror"
 date_format = "%Y-%m-%d %H:%M:%S"
 
+DEBUG_PACKAGES = ['anna', 'debianutils', 'mutt', 'ncurses', 'zlib', 'libgsf',
+    'libxml2', 'planner', 'util-linux', 'calibre', 'asterisk', 'sylpheed',
+    'nginx', 'bluez', 'openssh', 'exiv2', 'dash', 'xscreensaver', 'poppler',
+    'kopanocore', 'kopanocore', 'util-vserver', 'dnsmasq', 'fakeroot',
+    'libarchive', '"imagemagick', 'oath-toolkit', 'pam', 'evolution',
+    'bibutils', 'nethack', 'nis', 'nasm', 'cpio', 'varnish', 'keyutils',
+    'libpcap', 'ppp', 'libtool', 'bind9', 'tnef', 'seafile', 'systemd',
+    'trousers', 'convlit', 'gpp', 'tar', 'cracklib2', 'postfix', 'sudo',
+    'apt', 'linphone', 'ipmitool', 'minidjvu', 'sox', 'cimg', 'dhcpcd5',
+    'arj', 'pwgen', 'm2crypto', 'gedit', 'dia', 'tiff', 'filezilla', 'apparmor',
+    'kannel', 'secure-delete', 'opensc', 'blender', 'qbittorrent', 'webfs',
+    'gthumb', '9base', 'hunspell', 'keepassx', 'gdm3', 'shadow', 'clamav',
+    'nfs-utils', 'pcre3', 'tcc', 'lout', 'uw-imap', 'pvm', 'xcftools', 'lava',
+    'grub2', 'graphviz', 'librsync', 'git', 'cflow', 'rsync', 'encfs', 'nvi',
+    'postgresql-common', 'gcc', 'glibc', 'dsniff', 'sqlite3', 'bash'
+]
+
 
 class DebianPackageRelease:
     """Represents a Debian Package Release.
@@ -321,6 +338,39 @@ class DateUdd(Udd):
         return cursor.fetchall()
 
 
+class DebugUdd(Udd):
+    """Fetch specific releases from a default list with sources.
+    """
+
+    def query(self):
+        cursor = self.con.cursor()
+
+        check_is_c = (" AND tag LIKE '%implemented-in::c%' "
+                      if self.is_c else '')
+        check_release = (" AND release = '{}' ".format(self.release)
+                         if self.release else '')
+        check_arch = (" AND architecture = '{}' ".format(self.arch)
+                      if self.arch else '')
+        checks = '{} {} {}'.format(check_is_c, check_release, check_arch)
+
+        packages = ""
+        template = "packages.source = '{}' OR "
+        for s in DEBUG_PACKAGES:
+            packages += template.format(s)
+        packages = packages[:-3]
+
+        query = ("SELECT package, packages.version, packages.source, "
+                 "source_version, date, architecture, release "
+                 "FROM packages INNER JOIN upload_history ON "
+                 "upload_history.source = packages.source AND "
+                 "upload_history.version = packages.source_version "
+                 "WHERE ({}) {}"
+                ).format(packages, checks)
+
+        cursor.execute(query)
+        return cursor.fetchall()
+
+
 def get_parser():
     parser = argparse.ArgumentParser(
         "Scrape Debian packages releases, and optionally push them to Kafka."
@@ -351,6 +401,12 @@ def get_parser():
         type=lambda s: datetime.datetime.strptime(s, date_format),
         help=("The date to start scraping from. Must be in "
               "%%Y-%%m-%%d %%H:%%M:%%S format.")
+    )
+    parser.add_argument(
+        '-D',
+        '--debug',
+        action='store_true',
+        help="Fetch some predefined packages for debugging purposes"
     )
     parser.add_argument(
         '-f',
@@ -428,6 +484,7 @@ def main():
     source = args.source
     sleep_time = args.sleep_time
     version = args.version
+    debug = args.debug
 
     if latest_date:
         udd_con = DateUdd(
@@ -444,6 +501,11 @@ def main():
             bootstrap_servers, kafka_topic,
             is_c, debian_release, arch, source, version,
             False
+        )
+    elif debug:
+        udd_con = DebugUdd(
+            bootstrap_servers, kafka_topic,
+            is_c, debian_release, arch
         )
     else:
         udd_con = AllUdd(
