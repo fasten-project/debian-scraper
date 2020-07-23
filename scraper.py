@@ -196,7 +196,6 @@ class Udd(ABC):
 
         producer = KafkaProducer(
             bootstrap_servers=self.servers.split(','),
-            security_protocol="PLAINTEXT",
             value_serializer=lambda x: x.encode('utf-8')
         )
 
