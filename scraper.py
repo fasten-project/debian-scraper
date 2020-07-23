@@ -149,7 +149,7 @@ class Udd(ABC):
         for row in query_result:
             releases.append(
                 DebianPackageRelease(
-                    row[0], row[1], row[2], row[3], row[4], row[5], row[6]
+                    row[0], row[1], row[2], row[3], "", row[4], row[5]
                 )
             )
         return releases
@@ -166,6 +166,7 @@ class Udd(ABC):
         print(len(releases))
 
         # Return them sorted.
+        # To sort them by date add:
         return sorted(releases, key=lambda x: x.date)
 
     def to_print(self):
@@ -182,7 +183,9 @@ class Udd(ABC):
                 return self.start_date
             else:
                 return str(datetime.datetime.today().strftime(date_format))
-        return releases[-1].date.replace(tzinfo=None)
+        return releases[-1].date
+        # We need this line if we use dates
+        #  return releases[-1].date.replace(tzinfo=None)
 
 
     def to_kafka(self):
@@ -193,6 +196,7 @@ class Udd(ABC):
 
         producer = KafkaProducer(
             bootstrap_servers=self.servers.split(','),
+            security_protocol="PLAINTEXT",
             value_serializer=lambda x: x.encode('utf-8')
         )
 
@@ -239,10 +243,8 @@ class AllUdd(Udd):
         check = "WHERE " + check if check != '' else ''
 
         query = ("SELECT package, packages.version, packages.source, "
-                 "source_version, date, architecture, release "
-                 "FROM packages INNER JOIN upload_history ON "
-                 "upload_history.source = packages.source AND "
-                 "upload_history.version = packages.source_version "
+                 "source_version, architecture, release "
+                 "FROM packages "
                  "{}"
                 ).format(check)
 
@@ -282,10 +284,8 @@ class PackageUdd(Udd):
         )
 
         query = ("SELECT package, packages.version, packages.source, "
-                 "source_version, date, architecture, release "
-                 "FROM packages INNER JOIN upload_history ON "
-                 "upload_history.source = packages.source AND "
-                 "upload_history.version = packages.source_version "
+                 "source_version, architecture, release "
+                 "FROM packages "
                  "WHERE {} = '{}' "
                  "{} LIMIT 1"
                 ).format(package_source, self.package, check)
@@ -323,11 +323,10 @@ class DateUdd(Udd):
             check_is_c, check_release, check_arch, check_package
         )
 
+        raise NotImplementedError("Upload history does not contain all packages")
         query = ("SELECT package, packages.version, packages.source, "
                  "source_version, date, architecture, release "
-                 "FROM packages INNER JOIN upload_history ON "
-                 "upload_history.source = packages.source AND "
-                 "upload_history.version = packages.source_version "
+                 "FROM packages "
                  "WHERE date > '{start_date}+00' "
                  "{check}").format(
                      start_date=self.start_date,
@@ -360,10 +359,8 @@ class DebugUdd(Udd):
         packages = packages[:-3]
 
         query = ("SELECT package, packages.version, packages.source, "
-                 "source_version, date, architecture, release "
-                 "FROM packages INNER JOIN upload_history ON "
-                 "upload_history.source = packages.source AND "
-                 "upload_history.version = packages.source_version "
+                 "source_version, architecture, release "
+                 "FROM packages "
                  "WHERE ({}) {}"
                 ).format(packages, checks)
 
